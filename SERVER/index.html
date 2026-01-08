@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f2027;
+      color: white;
+    }
+    .top {
+      padding: 20px;
+      background: #203a43;
+      text-align: center;
+    }
+    button {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 20px;
+      margin: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .on { background: #00ff9c; }
+    .off { background: #ff4d4d; color: white; }
+
+    .logs {
+      height: 70vh;
+      overflow-y: auto;
+      padding: 15px;
+      background: #111;
+      font-family: monospace;
+    }
+    .log {
+      margin-bottom: 5px;
+    }
+    .ESP { color: #00ffcc; }
+    .WEB { color: #ffcc00; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <h1>ESP Control Dashboard</h1>
+    <button class="on" onclick="setLed('on')">LED ON</button>
+    <button class="off" onclick="setLed('off')">LED OFF</button>
+  </div>
+
+  <div class="logs" id="logs"></div>
+
+  <script>
+    const server = "";
+
+    function setLed(state) {
+      fetch(server + "/set", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({state})
+      });
+    }
+
+    function loadLogs() {
+      fetch(server + "/logs")
+        .then(r => r.json())
+        .then(data => {
+          const box = document.getElementById("logs");
+          box.innerHTML = "";
+          data.forEach(l => {
+            box.innerHTML +=
+              `<div class="log ${l.from}">
+                [${l.time}] ${l.from}: ${l.msg}
+              </div>`;
+          });
+          box.scrollTop = box.scrollHeight;
+        });
+    }
+
+    setInterval(loadLogs, 2000);
+  </script>
+</body>
+</html>
