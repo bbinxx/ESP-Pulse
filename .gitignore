@@ -34,7 +34,10 @@ config.h
 # Database
 SERVER/data/*.db
 SERVER/data/*.db-*
-
+app.db
+*.db-journal
+*.db-shm
+*.db-wal
 # Virtual Environment
 venv/
 env/
