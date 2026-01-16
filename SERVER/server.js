@@ -23,37 +23,48 @@ app.use((req, res, next) => {
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
-  console.log(`✅ Client connected: ${socket.id}`);
+  console.log(`✅ [SOCKET] Client connected: ${socket.id} (IP: ${socket.request.connection.remoteAddress})`);
 
-  // Send initial status
+  // Send initial status immediately
   sendStatus(socket);
 
-  // Send initial logs
+  // Send recent logs
   db.getLogs(100, (err, logs) => {
     if (!err) socket.emit("logs", logs);
   });
 
-  socket.on("disconnect", () => {
-    console.log(`❌ Client disconnected: ${socket.id}`);
+  socket.on("disconnect", (reason) => {
+    console.log(`❌ [SOCKET] Client disconnected: ${socket.id} (Reason: ${reason})`);
+  });
+
+  // Allow clients to request refresh
+  socket.on("refresh", () => {
+    console.log(`🔄 [SOCKET] Refresh requested by ${socket.id}`);
+    sendStatus(socket);
   });
 });
 
 // Helper to broadcast status to all clients
 function sendStatus(target = io) {
   db.getHeartbeat((err, lastHeartbeat) => {
-    if (err) return;
+    if (err) return console.error("❌ [DB] Error getting heartbeat:", err);
 
     db.getState('ledState', (err, ledState) => {
-      if (err) return;
+      if (err) return console.error("❌ [DB] Error getting LED state:", err);
 
       const now = Date.now();
-      const isOnline = lastHeartbeat && (now - lastHeartbeat) < 10000;
+      const isOnline = lastHeartbeat && (now - lastHeartbeat) < 12000; // 12s timeout (allows for 1s network latency + 10s polling gap)
+      const lastSeenDate = lastHeartbeat ? new Date(parseInt(lastHeartbeat)) : null;
 
-      target.emit("status", {
+      const statusPayload = {
         online: isOnline,
         ledState: ledState || "off",
-        lastSeen: lastHeartbeat ? new Date(lastHeartbeat).toISOString() : null
-      });
+        lastSeen: lastSeenDate ? lastSeenDate.toISOString() : null,
+        serverTime: now
+      };
+
+      // console.log(`📊 [STATUS] Broadcast: Online=${isOnline}, LED=${ledState}`);
+      target.emit("status", statusPayload);
     });
   });
 }
@@ -61,23 +72,30 @@ function sendStatus(target = io) {
 // Set LED state (from dashboard)
 app.post("/set", (req, res) => {
   const { state } = req.body;
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  console.log(`⚡ [API] POST /set: ${state} (from ${clientIp})`);
 
   db.getState('ledState', (err, currentState) => {
-    if (err) return res.status(500).json({ error: "Database error" });
+    if (err) {
+      console.error("❌ [DB] Error reading state:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
 
     db.setState('ledState', state, (err) => {
       if (err) return res.status(500).json({ error: "Database error" });
 
-      if (currentState !== state) {
-        db.addLog("WEB", `LED changed: ${currentState} → ${state}`, () => {
-          // Broadcast new log to all clients
-          db.getLogs(100, (err, logs) => {
-            if (!err) io.emit("logs", logs);
-          });
-        });
-      }
+      const msg = `LED changed: ${currentState} → ${state} (by Web)`;
+      console.log(`📝 [LOG] ${msg}`);
 
-      // Broadcast status update
+      db.addLog("WEB", msg, () => {
+        // Broadcast new log to all clients
+        db.getLogs(100, (err, logs) => {
+          if (!err) io.emit("logs", logs);
+        });
+      });
+
+      // Broadcast status update immediately
       sendStatus();
 
       res.json({ ok: true, state: state });
@@ -87,6 +105,7 @@ app.post("/set", (req, res) => {
 
 // Get LED state (ESP polls this)
 app.get("/get", (req, res) => {
+  // console.log(`🔍 [API] GET /get (ESP Polling)`);
   db.getState('ledState', (err, ledState) => {
     if (err) return res.status(500).json({ error: "Database error" });
     res.json({ led: ledState || "off" });
@@ -96,6 +115,7 @@ app.get("/get", (req, res) => {
 // Log from ESP
 app.post("/log", (req, res) => {
   const { msg } = req.body;
+  console.log(`📡 [API] POST /log from ESP: "${msg}"`);
 
   db.addLog("ESP", msg, (err) => {
     if (err) return res.status(500).json({ error: "Database error" });
@@ -105,7 +125,7 @@ app.post("/log", (req, res) => {
       if (!err) io.emit("logs", logs);
     });
 
-    // Broadcast status update (heartbeat changed)
+    // ESP just contacted us, so update heartbeat status!
     sendStatus();
 
     res.json({ ok: true });
