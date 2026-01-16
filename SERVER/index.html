@@ -410,125 +410,11 @@
     </div>
   </div>
 
+  <!-- Socket.IO Client -->
+  <script src="/socket.io/socket.io.js"></script>
+
   <script>
-    let currentLedState = 'off';
-    let espOnline = false;
-    let totalLogs = 0;
-
-    async function setLED(state) {
-      console.log(`Setting LED to: ${state}`);
-
-      const btnOn = document.getElementById('btnOn');
-      const btnOff = document.getElementById('btnOff');
-      btnOn.disabled = true;
-      btnOff.disabled = true;
-
-      try {
-        const res = await fetch('/set', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ state })
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const data = await res.json();
-        console.log('Set response:', data);
-        currentLedState = data.state;
-        updateUI();
-      } catch (err) {
-        console.error('Error setting LED:', err);
-        alert('Failed to set LED state. Check connection.');
-      } finally {
-        btnOn.disabled = false;
-        btnOff.disabled = false;
-      }
-    }
-
-    async function fetchStatus() {
-      try {
-        const res = await fetch('/status');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const data = await res.json();
-        console.log('Status:', data);
-
-        espOnline = data.online;
-        currentLedState = data.ledState;
-
-        // Update last seen
-        if (data.lastSeen) {
-          const lastSeen = new Date(data.lastSeen);
-          const now = new Date();
-          const diff = Math.floor((now - lastSeen) / 1000);
-          document.getElementById('lastSeen').textContent = diff < 60 ? `${diff}s` : 'offline';
-        } else {
-          document.getElementById('lastSeen').textContent = '--';
-        }
-
-        updateUI();
-      } catch (err) {
-        console.error('Error fetching status:', err);
-        espOnline = false;
-        updateUI();
-      }
-    }
-
-    async function fetchLogs() {
-      try {
-        const res = await fetch('/logs');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const logs = await res.json();
-        console.log('Logs count:', logs.length);
-        totalLogs = logs.length;
-        displayLogs(logs);
-        document.getElementById('logCount').textContent = totalLogs;
-      } catch (err) {
-        console.error('Error fetching logs:', err);
-      }
-    }
-
-    function displayLogs(logs) {
-      const container = document.getElementById('logs');
-
-      if (logs.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <p>No activity yet</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = logs.map(log => `
-        <div class="log-entry log-${log.source.toLowerCase()}">
-          <span class="log-time">${log.time}</span>
-          <span class="log-source ${log.source}">${log.source}</span>
-          <span>${log.msg}</span>
-        </div>
-      `).join('');
-
-      container.scrollTop = container.scrollHeight;
-    }
-
-    function updateUI() {
-      // Status dot
-      const statusDot = document.getElementById('statusDot');
-      statusDot.className = `status-dot ${espOnline ? 'online' : 'offline'}`;
-
-      // LED state text
-      document.getElementById('ledStateText').textContent = currentLedState.toUpperCase();
-
-      // Buttons
-      const btnOn = document.getElementById('btnOn');
-      const btnOff = document.getElementById('btnOff');
-
-      btnOn.classList.toggle('active', currentLedState === 'on');
-      btnOff.classList.toggle('active', currentLedState === 'off');
-    }
-
-    // Initialize Socket.IO for real-time updates
+    // Initialize Socket.IO
     const socket = io();
     let currentLedState = 'off';
     let espOnline = false;
@@ -633,11 +519,9 @@
       btnOff.classList.toggle('active', currentLedState === 'off');
     }
 
+    // Initial update
     updateUI();
   </script>
-
-  <!-- Socket.IO Client Library -->
-  <script src="/socket.io/socket.io.js"></script>
 </body>
 
 </html>
