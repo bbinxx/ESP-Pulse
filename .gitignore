@@ -31,6 +31,10 @@ package-lock.json
 # Config (credentials)
 config.h
 
+# Database
+SERVER/data/*.db
+SERVER/data/*.db-*
+
 # Virtual Environment
 venv/
 env/
