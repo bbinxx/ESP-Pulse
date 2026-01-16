@@ -97,42 +97,78 @@ void syncLedState() {
   HTTPClient http;
   String url = String(serverUrl) + "/get";
   
+  Serial.print("Polling: ");
+  Serial.println(url);
+  
   http.begin(wifiClient, url);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);  // Follow 308 redirects
+  http.setTimeout(5000);  // 5 second timeout
+  
   int httpCode = http.GET();
+
+  Serial.print("Response Code: ");
+  Serial.println(httpCode);
 
   if (httpCode == 200) {
     String payload = http.getString();
+    Serial.print("Payload: ");
+    Serial.println(payload);
     
     if (payload.indexOf("\"on\"") > 0) {
       digitalWrite(LED_PIN, LOW); // ON
-      Serial.println("LED: ON");
+      Serial.println("✓ LED: ON");
     } else {
       digitalWrite(LED_PIN, HIGH); // OFF
-      Serial.println("LED: OFF");
+      Serial.println("✓ LED: OFF");
     }
+  } else if (httpCode == 301 || httpCode == 302 || httpCode == 307 || httpCode == 308) {
+    Serial.println("⚠ Redirect detected - Check serverUrl (no trailing slash needed)");
+    String location = http.header("Location");
+    Serial.print("Redirect to: ");
+    Serial.println(location);
+  } else if (httpCode == -1) {
+    Serial.println("✗ Connection timeout");
+  } else if (httpCode < 0) {
+    Serial.print("✗ HTTP Client Error: ");
+    Serial.println(http.errorToString(httpCode));
   } else {
-    Serial.print("HTTP Error: ");
-    Serial.println(httpCode);
+    Serial.print("✗ HTTP Error ");
+    Serial.print(httpCode);
+    Serial.print(": ");
+    Serial.println(http.getString());
   }
   
   http.end();
 }
 
 void sendLog(String message) {
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("✗ Cannot send log: WiFi disconnected");
+    return;
+  }
 
   HTTPClient http;
   String url = String(serverUrl) + "/log";
   
   http.begin(wifiClient, url);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
   http.addHeader("Content-Type", "application/json");
+  http.setTimeout(5000);
   
   String json = "{\"msg\":\"" + message + "\"}";
   int httpCode = http.POST(json);
   
-  if (httpCode > 0) {
-    Serial.print("Log sent: ");
+  if (httpCode == 200) {
+    Serial.print("✓ Log sent: ");
     Serial.println(message);
+  } else if (httpCode > 0) {
+    Serial.print("⚠ Log HTTP ");
+    Serial.print(httpCode);
+    Serial.print(": ");
+    Serial.println(message);
+  } else {
+    Serial.print("✗ Log failed: ");
+    Serial.println(http.errorToString(httpCode));
   }
   
   http.end();
