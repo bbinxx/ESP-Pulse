@@ -118,7 +118,8 @@ void syncLedState() {
     Serial.print("Payload: ");
     Serial.println(payload);
     
-    if (payload.indexOf("\"on\"") > 0) {
+    // Parse JSON: {"led":"on"} or {"led":"off"}
+    if (payload.indexOf("\"led\":\"on\"") > 0 || payload.indexOf("\"led\": \"on\"") > 0) {
       digitalWrite(LED_PIN, LOW); // ON
       Serial.println("✓ LED: ON");
     } else {
