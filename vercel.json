@@ -25,13 +25,10 @@
         {
             "source": "/status",
             "destination": "/api/status"
-        }
-    ],
-    "routes": [
+        },
         {
-            "src": "/.*",
-            "dest": "/SERVER/index.html"
+            "source": "/(.*)",
+            "destination": "/SERVER/index.html"
         }
-    ],
-    "public": false
+    ]
 }
