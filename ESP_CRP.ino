@@ -81,9 +81,11 @@ void loop() {
       delay(5000);
       
       if (WiFi.status() == WL_CONNECTED) {
-        Serial.print("Reconnected to: ");
+        String ip = WiFi.localIP().toString();
+        long rssi = WiFi.RSSI();
+        Serial.print("Reconnected: ");
         Serial.println(networks[i].ssid);
-        sendLog("Reconnected: " + String(networks[i].ssid));
+        sendLog("Reconnected: " + String(networks[i].ssid) + " (" + String(rssi) + "dBm, IP: " + ip + ")");
         break;
       }
     }
@@ -91,7 +93,7 @@ void loop() {
   }
 
   // Poll server for LED state
-  if (millis() - lastPoll > pollInterval) {
+  if (millis() - lastPoll > 1000) { // Poll every 1 second (faster response)
     lastPoll = millis();
     syncLedState();
   }
@@ -101,46 +103,30 @@ void syncLedState() {
   HTTPClient http;
   String url = String(serverUrl) + "/get";
   
-  Serial.print("Polling: ");
-  Serial.println(url);
+  // Serial.print("Polling: ");
+  // Serial.println(url);
   
   http.begin(wifiClient, url);
-  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);  // Follow 308 redirects
-  http.setTimeout(5000);  // 5 second timeout
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+  http.setTimeout(3000);
   
   int httpCode = http.GET();
 
-  Serial.print("Response Code: ");
-  Serial.println(httpCode);
-
   if (httpCode == 200) {
     String payload = http.getString();
-    Serial.print("Payload: ");
-    Serial.println(payload);
+    // Payload: {"led":"on"}
     
-    // Parse JSON: {"led":"on"} or {"led":"off"}
     if (payload.indexOf("\"led\":\"on\"") > 0 || payload.indexOf("\"led\": \"on\"") > 0) {
       digitalWrite(LED_PIN, LOW); // ON
-      Serial.println("✓ LED: ON");
     } else {
       digitalWrite(LED_PIN, HIGH); // OFF
-      Serial.println("✓ LED: OFF");
     }
-  } else if (httpCode == 301 || httpCode == 302 || httpCode == 307 || httpCode == 308) {
-    Serial.println("⚠ Redirect detected - Check serverUrl (no trailing slash needed)");
-    String location = http.header("Location");
-    Serial.print("Redirect to: ");
-    Serial.println(location);
-  } else if (httpCode == -1) {
-    Serial.println("✗ Connection timeout");
-  } else if (httpCode < 0) {
-    Serial.print("✗ HTTP Client Error: ");
-    Serial.println(http.errorToString(httpCode));
+  } else if (httpCode > 0) {
+    Serial.print("HTTP Code: ");
+    Serial.println(httpCode);
   } else {
-    Serial.print("✗ HTTP Error ");
-    Serial.print(httpCode);
-    Serial.print(": ");
-    Serial.println(http.getString());
+    Serial.print("Connection Failed: ");
+    Serial.println(http.errorToString(httpCode));
   }
   
   http.end();
