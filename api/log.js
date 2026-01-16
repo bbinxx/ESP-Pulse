@@ -1,4 +1,4 @@
-let logs = [];
+const { setState, addLog } = require('./_state');
 
 module.exports = async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -10,16 +10,13 @@ module.exports = async (req, res) => {
 
     if (req.method === "POST") {
         const { msg } = req.body;
+
+        // Update heartbeat when ESP sends log
+        setState('lastHeartbeat', Date.now());
+
         addLog("ESP", msg);
         return res.json({ ok: true });
     }
 
     return res.status(405).json({ error: "Method not allowed" });
 };
-
-function addLog(source, msg) {
-    const timestamp = new Date().toLocaleTimeString("en-US", { hour12: false });
-    logs.push({ time: timestamp, source, msg, id: Date.now() });
-    if (logs.length > 500) logs.shift();
-    console.log(`[${timestamp}] ${source}: ${msg}`);
-}

@@ -279,6 +279,9 @@
   </div>
 
   <script>
+    let currentLedState = 'off';
+    let espOnline = false;
+
     async function setLED(state) {
       try {
         const res = await fetch('/set', {
@@ -287,9 +290,26 @@
           body: JSON.stringify({ state })
         });
         const data = await res.json();
+        currentLedState = data.state;
         console.log('LED state:', data.state);
+        updateButtonStates();
       } catch (err) {
         console.error('Error:', err);
+      }
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/status');
+        const data = await res.json();
+        espOnline = data.online;
+        currentLedState = data.ledState;
+        updateStatusBadge();
+        updateButtonStates();
+      } catch (err) {
+        console.error('Error fetching status:', err);
+        espOnline = false;
+        updateStatusBadge();
       }
     }
 
@@ -322,8 +342,38 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    // Auto-refresh logs every 2 seconds
+    function updateStatusBadge() {
+      const badge = document.querySelector('.status-badge');
+      if (espOnline) {
+        badge.textContent = '● ONLINE';
+        badge.style.color = '#4cd137';
+        badge.style.borderColor = 'rgba(76, 209, 55, 0.4)';
+        badge.style.background = 'rgba(76, 209, 55, 0.2)';
+      } else {
+        badge.textContent = '● OFFLINE';
+        badge.style.color = '#f5576c';
+        badge.style.borderColor = 'rgba(245, 87, 108, 0.4)';
+        badge.style.background = 'rgba(245, 87, 108, 0.2)';
+      }
+    }
+
+    function updateButtonStates() {
+      const onBtn = document.querySelector('.btn-on');
+      const offBtn = document.querySelector('.btn-off');
+
+      // Remove active class from both
+      onBtn.style.opacity = currentLedState === 'on' ? '1' : '0.6';
+      offBtn.style.opacity = currentLedState === 'off' ? '1' : '0.6';
+
+      onBtn.style.transform = currentLedState === 'on' ? 'scale(1.05)' : 'scale(1)';
+      offBtn.style.transform = currentLedState === 'off' ? 'scale(1.05)' : 'scale(1)';
+    }
+
+    // Auto-refresh status and logs
+    setInterval(fetchStatus, 2000);
     setInterval(fetchLogs, 2000);
+
+    fetchStatus();
     fetchLogs();
   </script>
 </body>

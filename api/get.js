@@ -1,4 +1,4 @@
-let ledState = "off";
+const { getState } = require('./_state');
 
 module.exports = async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -9,7 +9,8 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === "GET") {
-        return res.json({ led: ledState });
+        const state = getState();
+        return res.json({ led: state.ledState });
     }
 
     return res.status(405).json({ error: "Method not allowed" });

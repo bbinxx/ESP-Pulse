@@ -10,7 +10,14 @@ module.exports = async (req, res) => {
 
     if (req.method === "GET") {
         const state = getState();
-        return res.json(state.logs.slice(-100));
+        const now = Date.now();
+        const isOnline = state.lastHeartbeat && (now - state.lastHeartbeat) < 10000; // 10 sec timeout
+
+        return res.json({
+            online: isOnline,
+            ledState: state.ledState,
+            lastSeen: state.lastHeartbeat ? new Date(state.lastHeartbeat).toISOString() : null
+        });
     }
 
     return res.status(405).json({ error: "Method not allowed" });

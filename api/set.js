@@ -1,5 +1,4 @@
-let ledState = "off";
-let logs = [];
+const { getState, setState, addLog } = require('./_state');
 
 module.exports = async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -11,22 +10,17 @@ module.exports = async (req, res) => {
 
     if (req.method === "POST") {
         const { state } = req.body;
-        const prevState = ledState;
-        ledState = state;
+        const currentState = getState();
+        const prevState = currentState.ledState;
 
-        if (prevState !== ledState) {
-            addLog("WEB", `LED changed: ${prevState} → ${ledState}`);
+        setState('ledState', state);
+
+        if (prevState !== state) {
+            addLog("WEB", `LED changed: ${prevState} → ${state}`);
         }
 
-        return res.json({ ok: true, state: ledState });
+        return res.json({ ok: true, state: state });
     }
 
     return res.status(405).json({ error: "Method not allowed" });
 };
-
-function addLog(source, msg) {
-    const timestamp = new Date().toLocaleTimeString("en-US", { hour12: false });
-    logs.push({ time: timestamp, source, msg, id: Date.now() });
-    if (logs.length > 500) logs.shift();
-    console.log(`[${timestamp}] ${source}: ${msg}`);
-}
