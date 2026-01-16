@@ -1,12 +1,18 @@
 {
+    "functions": {
+        "api/**/*.js": {
+            "memory": 128,
+            "maxDuration": 10
+        }
+    },
     "rewrites": [
-        {
-            "source": "/set",
-            "destination": "/api/set"
-        },
         {
             "source": "/get",
             "destination": "/api/get"
+        },
+        {
+            "source": "/set",
+            "destination": "/api/set"
         },
         {
             "source": "/log",
@@ -15,10 +21,13 @@
         {
             "source": "/logs",
             "destination": "/api/logs"
-        },
-        {
-            "source": "/(.*)",
-            "destination": "/SERVER/index.html"
         }
-    ]
+    ],
+    "routes": [
+        {
+            "src": "/.*",
+            "dest": "/SERVER/index.html"
+        }
+    ],
+    "public": false
 }
